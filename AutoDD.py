@@ -21,9 +21,12 @@
 __author__ = "Fufu Fang"
 __copyright__ = "The GNU General Public License v3.0"
 
+from bs4 import BeautifulSoup
+import requests
 from psaw import PushshiftAPI
 from datetime import datetime, timedelta
 import re
+
 
 
 def get_submission(n):
@@ -109,18 +112,47 @@ def filter_tbl(tbl, min):
     tbl = [row for row in tbl if row[0] not in BANNED_WORDS]
     return tbl
 
+def getColorHtml(change):
+    if change[0] == '-':
+        return 'red'
+    return 'green'
 
-def print_tbl(tbl):
-    print("Code\tFrequency")
+def getColor(change):
+    if change == "N/A\t\t\t":
+        return '\033[94m'
+    if change.split('\t',1)[1][0] == '-':
+        return '\033[91m'
+    return '\033[92m'
+
+def getPrice(ticker):
+    source = requests.get('https://finance.yahoo.com/quote/' + ticker).text
+    soup = BeautifulSoup(source, 'lxml')
+    price = soup.find('span', attrs={"class": "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"})
+    if price is None or not price.text:
+        fo.write("<td>N/A</td><td></td><td><a href=\"https://www.reddit.com/r/pennystocks/search?q=" + ticker + "&restrict_sr=1&sort=new\">Reddit</a></td>")
+        return("N/A\t\t\t")
+    else:
+        change = price.find_next_sibling()
+        fo.write("<td><a href=\"https://finance.yahoo.com/quote/" + ticker + "\">" +price.text+"</a></td>""<td style=\"color:"+getColorHtml(change.text)+"\">"+change.text+"</td><td><a href=\"https://www.reddit.com/r/pennystocks/search?q=" + ticker + "&restrict_sr=1&sort=new\">Reddit</a></td>")
+        return(price.text+"\t"+change.text)
+
+def print_tbl(tbl, fo):
+    print("Most Frequent Tickers\n-----------------------------------\nCode\tFreq\tPrice\tChange")
+    fo.write("<html><head><link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css\"><title>Auto DD</title></head><body>")
+    fo.write("<table class=\"table\"><thead class=\"thead-dark\"><th scope=\"col\">Code</th><th scope=\"col\">Frequency</th><th scope=\"col\">Price</th><th scope=\"col\">Change</th><th scope=\"col\">Link</th></thead>")
     for row in tbl:
-        padding = ""
-        if len(row[0]) < 4:
-            padding = ' '
-        print(str(row[0]) + padding + "\t" + str(row[1]))
+        fo.write("<tr>")
+        fo.write("<th scope=\"row\">"+str(row[0])+"</th>""<td>"+str(row[1])+"</td>")
+        price = getPrice(str(row[0]))
+        print(getColor(price) + str(row[0]) + "\t" + str(row[1]) + "\t" + price)
+        fo.write("</tr>")
+    fo.write("</table></body></html>")
 
 
 if __name__ == '__main__':
-    gen = get_submission(1)  # Get 1 day worth of submission
+    gen = get_submission(2)  # Get 1 day worth of submission
     all_tbl, _, _ = get_freq_list(gen)
     all_tbl = filter_tbl(all_tbl, 2)
-    print_tbl(all_tbl)
+    fo = open("out.html", "w")
+    print_tbl(all_tbl, fo)
+    fo.close()
