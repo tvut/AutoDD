@@ -27,7 +27,7 @@ from psaw import PushshiftAPI
 from datetime import datetime, timedelta
 import re
 
-
+days_to_scrape = 2
 
 def get_submission(n):
     """Returns a generator for the submission in past n days"""
@@ -106,7 +106,7 @@ def filter_tbl(tbl, min):
     BANNED_WORDS = [
         'THE', 'FUCK', 'ING', 'CEO', 'USD', 'WSB', 'FDA', 'NEWS', 'FOR', 'YOU',
         'BUY', 'HIGH', 'ADS', 'FOMO', 'THIS', 'OTC', 'ELI', 'IMO',
-        'CBS', 'SEC', 'NOW', 'OVER', 'ROPE', 'MOON'
+        'CBS', 'SEC', 'NOW', 'OVER', 'ROPE', 'MOON', 'III', 'COVI', 'NASD', 'API', 'KLSV', 'STO', 
     ]
     tbl = [row for row in tbl if row[1] > min]
     tbl = [row for row in tbl if row[0] not in BANNED_WORDS]
@@ -129,30 +129,42 @@ def getPrice(ticker):
     soup = BeautifulSoup(source, 'lxml')
     price = soup.find('span', attrs={"class": "Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"})
     if price is None or not price.text:
-        fo.write("<td>N/A</td><td></td><td><a href=\"https://www.reddit.com/r/pennystocks/search?q=" + ticker + "&restrict_sr=1&sort=new\">Reddit</a></td>")
+        fo.write("<td>N/A</td><td></td><td><a target=\"_blank\" href=\"https://www.reddit.com/r/pennystocks/search?q=" + ticker + "&restrict_sr=1&sort=new\">Reddit</a></td>")
         return("N/A\t\t\t")
     else:
         change = price.find_next_sibling()
-        fo.write("<td><a href=\"https://finance.yahoo.com/quote/" + ticker + "\">" +price.text+"</a></td>""<td style=\"color:"+getColorHtml(change.text)+"\">"+change.text+"</td><td><a href=\"https://www.reddit.com/r/pennystocks/search?q=" + ticker + "&restrict_sr=1&sort=new\">Reddit</a></td>")
+        fo.write("<td><a target=\"_blank\" href=\"https://finance.yahoo.com/quote/" + ticker + "\">" +price.text+"</a></td>""<td style=\"color:"+getColorHtml(change.text)+"\">"+change.text+"</td><td><a target=\"_blank\" href=\"https://www.reddit.com/r/pennystocks/search?q=" + ticker + "&restrict_sr=1&sort=new\">Reddit</a></td>")
         return(price.text+"\t"+change.text)
 
 def print_tbl(tbl, fo):
-    print("Most Frequent Tickers\n-----------------------------------\nCode\tFreq\tPrice\tChange")
+    # print("Most Frequent Tickers\n-----------------------------------\nCode\tFreq\tPrice\tChange")
     fo.write("<html><head><link rel=\"stylesheet\" href=\"https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css\"><title>Auto DD</title></head><body>")
     fo.write("<table class=\"table\"><thead class=\"thead-dark\"><th scope=\"col\">Code</th><th scope=\"col\">Frequency</th><th scope=\"col\">Price</th><th scope=\"col\">Change</th><th scope=\"col\">Link</th></thead>")
+    x = 0
+    total=len(tbl)
     for row in tbl:
+        current = "Progress: "
+        for y in range(x):
+            current=current+"*"
+        for y in range(total-x):
+            current=current+"-"
+        print(current, end="\r", flush=True)
+        x=x+1
         fo.write("<tr>")
         fo.write("<th scope=\"row\">"+str(row[0])+"</th>""<td>"+str(row[1])+"</td>")
         price = getPrice(str(row[0]))
-        print(getColor(price) + str(row[0]) + "\t" + str(row[1]) + "\t" + price)
+        # print(getColor(price) + str(row[0]) + "\t" + str(row[1]) + "\t" + price)
         fo.write("</tr>")
     fo.write("</table></body></html>")
 
 
 if __name__ == '__main__':
-    gen = get_submission(2)  # Get 1 day worth of submission
+    print("Currently set to scrape " + str(days_to_scrape) + " days.")
+    print("Scraping penny stocks...")
+    gen = get_submission(days_to_scrape)  # Get 1 day worth of submission
     all_tbl, _, _ = get_freq_list(gen)
     all_tbl = filter_tbl(all_tbl, 2)
     fo = open("out.html", "w")
     print_tbl(all_tbl, fo)
     fo.close()
+    print("Finished scraping. Output saved to out.html.")
